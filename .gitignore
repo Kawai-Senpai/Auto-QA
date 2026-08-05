@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Evidence produced by test runs. Regenerated on every run and frequently large
+# (traces, videos, screenshots), so it is reported, never committed.
+artifacts/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Browser storage state can impersonate the account it was captured from.
+# Treat these as credentials, not fixtures.
+playwright/.auth/
+
+# Exploration sessions may contain page content, headers and request bodies
+# captured from a live application before any redaction has been applied.
+.qa/sessions/
+
+# Local scratch files from exploration runs
+*.tmp.mjs
+*.tmp.ts
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Claude Code local settings (personal, not project policy)
+.claude/settings.local.json

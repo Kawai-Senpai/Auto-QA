@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--caps=testing,storage,network,devtools"
+      ]
+    },
+    "chrome-devtools": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest", "--isolated"]
+    },
+    "qa-harness": {
+      "command": "cmd",
+      "args": ["/c", "npm", "run", "-s", "mcp"]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "todo-create",
+  "name": "User can create a todo item",
+  "requirementSource": "specs/product/todomvc.md#creating-a-todo",
+  "startPath": "./",
+  "steps": [
+    {
+      "action": "fill",
+      "target": {
+        "by": "role",
+        "role": "textbox",
+        "name": "What needs to be done?"
+      },
+      "value": "Buy groceries"
+    },
+    {
+      "action": "press",
+      "target": {
+        "by": "role",
+        "role": "textbox",
+        "name": "What needs to be done?"
+      },
+      "key": "Enter"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visible",
+      "target": { "by": "text", "text": "Buy groceries", "exact": true }
+    },
+    {
+      "type": "unchecked",
+      "target": { "by": "role", "role": "checkbox", "name": "Toggle Todo" }
+    },
+    {
+      "type": "visible",
+      "target": { "by": "text", "text": "1 item left", "exact": true }
+    },
+    {
+      "type": "value",
+      "target": {
+        "by": "role",
+        "role": "textbox",
+        "name": "What needs to be done?"
+      },
+      "value": ""
+    }
+  ]
+}

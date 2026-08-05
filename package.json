@@ -1,0 +1,36 @@
+{
+  "name": "auto-qa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "compile": "tsx src/cli-compile.ts",
+    "audit": "tsx src/cli-audit.ts",
+    "mcp": "tsx src/mcp-server.ts",
+    "init": "tsx src/cli-init.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.7",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3"
+  },
+  "bin": {
+    "agent-qa": "./src/cli-init.ts"
+  }
+}
