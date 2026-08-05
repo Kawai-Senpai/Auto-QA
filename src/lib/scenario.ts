@@ -250,6 +250,17 @@ export const ScenarioSchema = z.object({
   /** Fixed starting time, so date-dependent rendering is reproducible. */
   clockStart: z.string().optional(),
 
+  /**
+   * Viewport this scenario's contract applies to, matching a project name.
+   *
+   * Responsive designs express the same requirement differently: inline
+   * navigation on desktop, a disclosure menu on mobile. One scenario asserting
+   * both is either wrong on one viewport or so vague it asserts nothing, and
+   * test.skip is banned precisely so that difference cannot be papered over.
+   * Naming the viewport routes the compiled file to the matching project.
+   */
+  viewport: z.string().min(1).optional(),
+
   steps: z.array(StepSchema),
 
   assertions: z

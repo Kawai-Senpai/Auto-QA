@@ -738,6 +738,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
+
+  // A dev server that compiles routes on demand is a shared bottleneck: several
+  // workers hitting cold routes at once make the first navigation to each one
+  // exceed the navigation timeout, which surfaces as flakiness rather than as
+  // the resource contention it actually is. Serial locally, parallel in CI
+  // where the application is normally built and served rather than compiled
+  // per request. Raising timeouts instead would hide genuine slowness.
+  workers: process.env.CI ? undefined : 1,
   reporter: [
     ['list'],
     ['html', { outputFolder: ${JSON.stringify(
@@ -770,6 +778,17 @@ ${config.discovery.viewports
         )}],
         viewport: { width: ${viewport.width}, height: ${viewport.height} },
       },
+      // A scenario naming a viewport compiles to <id>.<viewport>.spec.ts and
+      // runs only there. Responsive designs express the same requirement
+      // differently - inline navigation on desktop, a disclosure menu on
+      // mobile - so a single test asserting both is either wrong on one
+      // viewport or too vague to assert anything. Unsuffixed files are
+      // viewport-agnostic and run everywhere.
+      testIgnore: ${JSON.stringify(
+        config.discovery.viewports
+          .filter((other) => other.name !== viewport.name)
+          .map((other) => `**/*.${other.name}.spec.ts`),
+      )},
     },`,
   )
   .join('\n')}

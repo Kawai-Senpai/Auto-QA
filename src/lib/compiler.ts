@@ -206,6 +206,17 @@ function compileAssertion(assertion: Assertion, index: number): string[] {
   }
 }
 
+/**
+ * File name for a compiled scenario. A viewport-scoped scenario carries the
+ * viewport in its name so the Playwright project matching that viewport is the
+ * only one that runs it.
+ */
+export function compiledFileName(scenario: Scenario): string {
+  return scenario.viewport
+    ? `${scenario.id}.${scenario.viewport}.spec.ts`
+    : `${scenario.id}.spec.ts`;
+}
+
 export function compileScenario(scenario: Scenario): string {
   const needsAxe = scenario.assertions.some(
     (assertion) => assertion.type === 'axe',

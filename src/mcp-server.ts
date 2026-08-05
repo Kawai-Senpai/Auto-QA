@@ -6,7 +6,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod';
 
 import { auditGeneratedTests, runPlaywrightTests, runTypeCheck } from './lib/audit.js';
-import { compileScenario } from './lib/compiler.js';
+import { compiledFileName, compileScenario } from './lib/compiler.js';
 import { ScenarioSchema } from './lib/scenario.js';
 import {
   CONFIG_FILENAME,
@@ -302,7 +302,7 @@ serveStdio(() => {
           const outputPath = join(
             root,
             config.testing.generatedDirectory,
-            `${scenario.id}.spec.ts`,
+            compiledFileName(scenario),
           );
 
           mkdirSync(dirname(outputPath), { recursive: true });
