@@ -71,6 +71,16 @@ function compileStep(step: Step): string[] {
       return [
         `  await ${locator(step.target)}.selectOption(${quote(step.value)});`,
       ];
+    case 'keyboard':
+      return [`  await page.keyboard.press(${quote(step.key)});`];
+    case 'advanceClock':
+      // Virtual time. The alternative is a real sleep, which the auditor
+      // rejects and which would make expiry tests take as long as the expiry.
+      return [`  await page.clock.fastForward(${quote(step.duration)});`];
+    case 'setViewport':
+      return [
+        `  await page.setViewportSize({ width: ${step.width}, height: ${step.height} });`,
+      ];
   }
 }
 
@@ -144,6 +154,55 @@ function compileAssertion(assertion: Assertion, index: number): string[] {
         `  expect(${variableName}.violations).toEqual([]);`,
       ];
     }
+
+    case 'screenshot': {
+      const options = [
+        `      fullPage: ${assertion.fullPage}`,
+        `      animations: 'disabled'`,
+        `      caret: 'hide'`,
+      ];
+
+      if (assertion.maxDiffPixelRatio !== undefined) {
+        options.push(`      maxDiffPixelRatio: ${assertion.maxDiffPixelRatio}`);
+      }
+
+      if (assertion.mask.length > 0) {
+        // Masked regions are painted over before comparison, so clocks, avatars
+        // and randomised content cannot fail an otherwise stable baseline.
+        const masks = assertion.mask
+          .map((target) => `        ${locator(target)}`)
+          .join(',\n');
+        options.push(`      mask: [\n${masks},\n      ]`);
+      }
+
+      return [
+        `  await expect(page).toHaveScreenshot(${quote(assertion.name)}, {`,
+        ...options.map((line) => `${line},`),
+        '  });',
+      ];
+    }
+
+    case 'ariaSnapshot': {
+      const root = assertion.target ? locator(assertion.target) : 'page';
+      return [
+        `  await expect(${root}).toMatchAriaSnapshot(\``,
+        ...assertion.snapshot.split('\n').map((line) => `    ${line}`),
+        '  `);',
+      ];
+    }
+
+    case 'attached':
+      return [`  await expect(${locator(assertion.target)}).toBeAttached();`];
+    case 'detached':
+      return [
+        `  await expect(${locator(assertion.target)}).not.toBeAttached();`,
+      ];
+    case 'enabled':
+      return [`  await expect(${locator(assertion.target)}).toBeEnabled();`];
+    case 'disabled':
+      return [`  await expect(${locator(assertion.target)}).toBeDisabled();`];
+    case 'focused':
+      return [`  await expect(${locator(assertion.target)}).toBeFocused();`];
   }
 }
 
@@ -168,7 +227,41 @@ export function compileScenario(scenario: Scenario): string {
     lines.push("import AxeBuilder from '@axe-core/playwright';");
   }
 
-  lines.push('', `test(${quote(scenario.name)}, async ({ page }) => {`);
+  lines.push('');
+
+  if (scenario.role) {
+    // Storage state rather than logging in through the UI: faster, and it stops
+    // one login-form change from breaking every authenticated test.
+    lines.push(
+      `test.use({ storageState: ${quote(
+        `.qa/runtime/auth/${scenario.role}.json`,
+      )} });`,
+      '',
+    );
+  }
+
+  lines.push(`test(${quote(scenario.name)}, async ({ page${
+    scenario.har ? ', context' : ''
+  } }) => {`);
+
+  if (scenario.har) {
+    lines.push(
+      `  await context.routeFromHAR(${quote(scenario.har.path)}, {`,
+      `    url: ${quote(scenario.har.urlPattern)},`,
+      `    notFound: ${quote(scenario.har.notFound)},`,
+      '  });',
+      '',
+    );
+  }
+
+  if (scenario.clockStart) {
+    lines.push(
+      `  await page.clock.install({ time: new Date(${quote(
+        scenario.clockStart,
+      )}) });`,
+      '',
+    );
+  }
 
   if (needsNetwork) {
     // Registered before the first navigation so a request fired during initial

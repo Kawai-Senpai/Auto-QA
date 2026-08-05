@@ -38,3 +38,7 @@ Thumbs.db
 
 # Claude Code local settings (personal, not project policy)
 .claude/settings.local.json
+
+# Working design notes - churns constantly and is not the delivered contract.
+# AGENTS.md, docs/SETUP.md and docs/AGENT-PLAYBOOK.md are the committed guidance.
+docs/PLAN.md

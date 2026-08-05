@@ -136,36 +136,53 @@ export function auditGeneratedTests(root = 'tests/generated'): AuditIssue[] {
   return issues;
 }
 
+/**
+ * Type-check a repository.
+ *
+ * A generated test that does not compile is not a failing test - it is a test
+ * that never ran, and a suite can report green while silently omitting it.
+ */
+export function runTypeCheck(cwd = process.cwd()): TestRunResult {
+  return spawnNode([require.resolve('typescript/bin/tsc'), '--noEmit'], cwd);
+}
+
 export function runPlaywrightTests(options: {
   target?: string;
   repeatEach?: number;
   project?: string;
+  config?: string;
+  cwd?: string;
 }): TestRunResult {
   const target = options.target ?? 'tests/generated';
   const repeatEach = options.repeatEach ?? 3;
   const project = options.project ?? 'chromium';
 
-  // Spawn the Playwright CLI with the current Node binary rather than going
-  // through npx. Node refuses to spawn .cmd shims without shell: true on
-  // Windows, and enabling a shell here would pass a caller-supplied target
-  // through command parsing - an injection route the MCP tool must not have.
-  const result = spawnSync(
-    process.execPath,
-    [
-      require.resolve('@playwright/test/cli'),
-      'test',
-      target,
-      `--project=${project}`,
-      `--repeat-each=${repeatEach}`,
-    ],
-    {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: 'utf8',
-      stdio: 'pipe',
-      maxBuffer: 20 * 1024 * 1024,
-    },
-  );
+  const args = [require.resolve('@playwright/test/cli'), 'test', target];
+
+  if (options.config) {
+    args.push(`--config=${options.config}`);
+  }
+
+  args.push(`--project=${project}`, `--repeat-each=${repeatEach}`);
+
+  return spawnNode(args, options.cwd ?? process.cwd());
+}
+
+/**
+ * Spawn the current Node binary directly rather than going through npx.
+ *
+ * Node refuses to spawn .cmd shims without shell: true on Windows, and enabling
+ * a shell here would pass caller-supplied arguments through command parsing -
+ * an injection route an MCP tool must not have.
+ */
+function spawnNode(args: string[], cwd: string): TestRunResult {
+  const result = spawnSync(process.execPath, args, {
+    cwd,
+    env: process.env,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    maxBuffer: 20 * 1024 * 1024,
+  });
 
   return {
     exitCode: typeof result.status === 'number' ? result.status : 1,

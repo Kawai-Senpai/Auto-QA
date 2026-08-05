@@ -98,6 +98,28 @@ export const StepSchema = z.discriminatedUnion('action', [
     target: TargetSchema,
     value: z.string(),
   }),
+
+  /** Keyboard-only navigation, for focus order and reachability checks. */
+  z.object({ action: z.literal('keyboard'), key: z.string().min(1) }),
+
+  /**
+   * Advance virtual time instead of waiting.
+   *
+   * Session expiry, inactivity logout, countdowns and scheduled behaviour are
+   * otherwise untestable without a real-time sleep, which the auditor rejects
+   * and which would make the suite unusably slow.
+   */
+  z.object({
+    action: z.literal('advanceClock'),
+    duration: z.string().min(1).describe('e.g. "05:00" or "30:00"'),
+  }),
+
+  /** Re-run the flow at a different viewport without duplicating the scenario. */
+  z.object({
+    action: z.literal('setViewport'),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
 ]);
 
 export const AssertionSchema = z.discriminatedUnion('type', [
@@ -140,6 +162,46 @@ export const AssertionSchema = z.discriminatedUnion('type', [
     urlIncludes: z.string().min(1),
   }),
   z.object({ type: z.literal('axe'), tags: z.array(z.string()).optional() }),
+
+  /**
+   * Pixel comparison against a committed baseline.
+   *
+   * A baseline is an approval, not a recording of whatever rendered today, so
+   * the first run of a visual assertion must be reviewed by a human before the
+   * snapshot is committed. Animations are disabled and the caret hidden because
+   * otherwise the diff is dominated by noise nobody cares about.
+   */
+  z.object({
+    type: z.literal('screenshot'),
+    name: z.string().min(1),
+    fullPage: z.boolean().default(true),
+    maxDiffPixelRatio: z.number().min(0).max(1).optional(),
+    /** Selectors to blank out: clocks, ads, random data, avatars. */
+    mask: z.array(TargetSchema).default([]),
+  }),
+
+  /**
+   * Structural comparison of the accessibility tree.
+   *
+   * Cheaper and far more stable than a screenshot, and it fails for reasons a
+   * human can read: a heading that lost its level, a control that lost its
+   * name. Prefer this over a pixel diff whenever the question is structural.
+   */
+  z.object({
+    type: z.literal('ariaSnapshot'),
+    snapshot: z.string().min(1),
+    target: TargetSchema.optional(),
+  }),
+
+  /** Element is present in the DOM but not visible - distinct from absent. */
+  z.object({ type: z.literal('attached'), target: TargetSchema }),
+  z.object({ type: z.literal('detached'), target: TargetSchema }),
+
+  z.object({ type: z.literal('enabled'), target: TargetSchema }),
+  z.object({ type: z.literal('disabled'), target: TargetSchema }),
+
+  /** Keyboard reachability: the named control must hold focus. */
+  z.object({ type: z.literal('focused'), target: TargetSchema }),
 ]);
 
 export const ScenarioSchema = z.object({
@@ -160,6 +222,33 @@ export const ScenarioSchema = z.object({
   requirementSource: z.string().min(1),
 
   startPath: z.string().min(1).default('/'),
+
+  /**
+   * Role whose stored authentication state the test loads.
+   *
+   * Omitted means unauthenticated. Naming a role compiles to a storage-state
+   * load rather than logging in through the UI on every test - which is slow,
+   * couples every test to the login form, and turns one login change into a
+   * hundred failures.
+   */
+  role: z.string().min(1).optional(),
+
+  /**
+   * Replay recorded network traffic instead of reaching a real service.
+   *
+   * For deterministic third-party dependencies, not as a substitute for
+   * integration testing your own API.
+   */
+  har: z
+    .object({
+      path: z.string().min(1),
+      urlPattern: z.string().min(1).default('**/api/**'),
+      notFound: z.enum(['abort', 'fallback']).default('abort'),
+    })
+    .optional(),
+
+  /** Fixed starting time, so date-dependent rendering is reproducible. */
+  clockStart: z.string().optional(),
 
   steps: z.array(StepSchema),
 

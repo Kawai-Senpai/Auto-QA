@@ -1,7 +1,19 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 
 import { CONFIG_FILENAME, TargetConfigSchema } from './lib/target-config.js';
+import type { TargetConfig } from './lib/target-config.js';
+import {
+  authAdapterTemplate,
+  authTypesTemplate,
+  evidenceFixtureTemplate,
+  lighthouseConfigTemplate,
+  playwrightConfigTemplate,
+  prepareAuthStateTemplate,
+  qaMissionTemplate,
+  seedTemplate,
+  targetAgentsTemplate,
+} from './lib/templates.js';
 
 /**
  * Bootstrap a target application repository for agent-driven QA.
@@ -17,6 +29,7 @@ import { CONFIG_FILENAME, TargetConfigSchema } from './lib/target-config.js';
 
 interface Detected {
   startCommand: string | undefined;
+  buildCommand: string | undefined;
   baseURL: string;
   framework: string;
 }
@@ -27,6 +40,7 @@ function detect(root: string): Detected {
   if (!existsSync(packageJsonPath)) {
     return {
       startCommand: undefined,
+      buildCommand: undefined,
       baseURL: 'http://localhost:3000/',
       framework: 'unknown',
     };
@@ -64,9 +78,14 @@ function detect(root: string): Detected {
   } else if (deps.nuxt) {
     framework = 'nuxt';
     port = 3000;
+  } else if (deps['react-scripts']) {
+    framework = 'cra';
+    port = 3000;
+  } else if (deps.svelte) {
+    framework = 'svelte';
+    port = 5173;
   }
 
-  // Read an explicit port out of the dev script when one is pinned there.
   const explicitPort = scripts.dev?.match(/--port[= ](\d+)/)?.[1];
   if (explicitPort) {
     port = Number.parseInt(explicitPort, 10);
@@ -74,6 +93,7 @@ function detect(root: string): Detected {
 
   return {
     startCommand,
+    buildCommand: scripts.build ? 'npm run build' : undefined,
     // localhost rather than 127.0.0.1: dev servers commonly bind IPv6 loopback
     // only, and a hardcoded IPv4 host then fails to connect.
     baseURL: `http://localhost:${port}/`,
@@ -81,168 +101,73 @@ function detect(root: string): Detected {
   };
 }
 
-function writeIfAbsent(path: string, contents: string): 'created' | 'kept' {
+/**
+ * `--refresh` rewrites engine-owned templates that a newer engine version has
+ * changed. It is opt-in because the alternative - overwriting by default -
+ * would silently discard hand edits, and never overwriting leaves a target
+ * stranded on the templates it was first initialised with.
+ *
+ * It applies only to files the engine owns. Configuration, requirements,
+ * scenarios and tests are the product's and are never touched.
+ */
+const REFRESH = process.argv.includes('--refresh');
+
+function writeIfAbsent(
+  path: string,
+  contents: string,
+  engineOwned = false,
+): 'created' | 'kept' | 'refreshed' {
   if (existsSync(path)) {
-    return 'kept';
+    if (!(REFRESH && engineOwned)) {
+      return 'kept';
+    }
+
+    if (readFileSync(path, 'utf8') === contents) {
+      return 'kept';
+    }
+
+    writeFileSync(path, contents, 'utf8');
+    return 'refreshed';
   }
 
-  mkdirSync(resolve(path, '..'), { recursive: true });
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, contents, 'utf8');
   return 'created';
 }
 
-function appendGitignore(root: string, entries: string[]): void {
+/**
+ * Anything that can impersonate an account, or that captures live page content
+ * before redaction has been reviewed, must never reach version control.
+ */
+const GITIGNORE_ENTRIES = [
+  '.env.agent-qa.local',
+  '.qa/runtime/',
+  '.qa/sessions/',
+  'playwright/.auth/',
+  'artifacts/',
+  '.lighthouseci/',
+];
+
+function appendGitignore(root: string, entries: string[]): 'updated' | 'kept' {
   const path = resolve(root, '.gitignore');
   const existing = existsSync(path) ? readFileSync(path, 'utf8') : '';
   const missing = entries.filter((entry) => !existing.includes(entry));
 
   if (missing.length === 0) {
-    return;
+    return 'kept';
   }
 
   const block = [
     '',
-    '# Agent QA evidence and credentials',
-    '# Storage state can impersonate the account it was captured from.',
+    '# Agent QA runtime state and evidence.',
+    '# Storage state can impersonate the account it was captured from, and',
+    '# session evidence may contain unredacted page content.',
     ...missing,
     '',
   ].join('\n');
 
   writeFileSync(path, existing.replace(/\s*$/, '\n') + block, 'utf8');
-}
-
-const FIXTURES_TEMPLATE = `import { test as base, expect, type TestInfo } from '@playwright/test';
-
-export interface BrowserSignals {
-  consoleErrors: string[];
-  pageErrors: string[];
-  failedRequests: Array<{ method: string; url: string; failure: string }>;
-}
-
-/**
- * Collects the browser evidence a screenshot cannot show.
- *
- * Recording is unconditional; failing on it is not. Most applications already
- * log harmless noise, and a harness that fails every test on the first console
- * warning gets switched off within a day. Set FAIL_ON_BROWSER_ERRORS=1 once the
- * application is clean enough to hold the line.
- */
-export const test = base.extend<{ browserSignals: BrowserSignals }>({
-  browserSignals: [
-    async ({ page }, use, testInfo: TestInfo) => {
-      const signals: BrowserSignals = {
-        consoleErrors: [],
-        pageErrors: [],
-        failedRequests: [],
-      };
-
-      page.on('console', (message) => {
-        if (message.type() === 'error') signals.consoleErrors.push(message.text());
-      });
-      page.on('pageerror', (error) => signals.pageErrors.push(error.message));
-      page.on('requestfailed', (request) => {
-        signals.failedRequests.push({
-          method: request.method(),
-          url: request.url(),
-          failure: request.failure()?.errorText ?? 'Unknown network failure',
-        });
-      });
-
-      await use(signals);
-
-      await testInfo.attach('browser-signals', {
-        body: Buffer.from(JSON.stringify(signals, null, 2), 'utf8'),
-        contentType: 'application/json',
-      });
-
-      if (process.env.FAIL_ON_BROWSER_ERRORS === '1') {
-        expect.soft(signals.pageErrors, 'Unexpected uncaught browser errors').toEqual([]);
-        expect.soft(signals.consoleErrors, 'Unexpected browser console errors').toEqual([]);
-      }
-    },
-    { auto: true },
-  ],
-});
-
-export { expect };
-`;
-
-const SEED_TEMPLATE = `import { test, expect } from './fixtures.js';
-
-/**
- * Proves the environment before any exploration happens.
- *
- * When this fails the problem is the application, the fixtures or the
- * configuration - not the feature under test. Exploring past a failing seed
- * produces scenarios built on a broken environment.
- */
-const seedPath = process.env.SEED_PATH ?? './';
-const seedHeading = process.env.SEED_HEADING;
-
-test('application is reachable and renders its landing page', async ({ page }) => {
-  const response = await page.goto(seedPath);
-
-  // A SPA returning 500 can still render a shell, so the status is checked
-  // rather than inferred from the page looking populated.
-  expect(response?.status(), 'Landing page must not return an error status').toBeLessThan(400);
-
-  if (seedHeading) {
-    await expect(page.getByRole('heading', { name: seedHeading }).first()).toBeVisible();
-  } else {
-    await expect(page.locator('body')).not.toBeEmpty();
-  }
-});
-`;
-
-function playwrightConfigTemplate(cfg: {
-  application: { baseURL: string; startCommand?: string; startupTimeoutMs: number };
-  testing: { testDirectory: string };
-  validation: { repeatEach: number };
-}): string {
-  return `import { defineConfig, devices } from '@playwright/test';
-
-// Written by agent-qa init. Separate from any existing playwright.config so the
-// QA suite can evolve without disturbing the project's own Playwright setup.
-const baseURL = process.env.BASE_URL ?? ${JSON.stringify(cfg.application.baseURL)};
-const webServerCommand = process.env.WEB_SERVER_COMMAND ?? ${JSON.stringify(cfg.application.startCommand ?? '')};
-
-export default defineConfig({
-  testDir: ${JSON.stringify('./' + cfg.testing.testDirectory)},
-  outputDir: './artifacts/test-results',
-  timeout: 30_000,
-  expect: { timeout: 7_500 },
-  fullyParallel: true,
-  forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'artifacts/playwright-report', open: 'never' }],
-    ['json', { outputFile: 'artifacts/results.json' }],
-  ],
-  use: {
-    baseURL,
-    actionTimeout: 10_000,
-    navigationTimeout: 30_000,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'on-first-retry',
-  },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
-  ],
-  webServer: webServerCommand
-    ? {
-        command: webServerCommand,
-        url: baseURL,
-        reuseExistingServer: !process.env.CI,
-        timeout: ${cfg.application.startupTimeoutMs},
-        stdout: 'pipe',
-        stderr: 'pipe',
-      }
-    : undefined,
-});
-`;
+  return 'updated';
 }
 
 const targetIndex = process.argv.indexOf('--target');
@@ -257,119 +182,124 @@ if (!existsSync(targetRoot)) {
 
 const detected = detect(targetRoot);
 
-const config = TargetConfigSchema.parse({
-  version: 1,
-  application: {
-    baseURL: detected.baseURL,
-    startCommand: detected.startCommand,
-    healthURL: detected.baseURL,
-    startupTimeoutMs: 120_000,
-    seedPath: './',
-  },
-  testing: {},
-  capture: {},
-  browser: {},
-  validation: {},
-});
+// Reuse an existing config so re-running init never silently reverts hand edits.
+const configPath = join(targetRoot, CONFIG_FILENAME);
 
-const results: Array<[string, string]> = [];
+const config: TargetConfig = existsSync(configPath)
+  ? TargetConfigSchema.parse(JSON.parse(readFileSync(configPath, 'utf8')))
+  : TargetConfigSchema.parse({
+      version: 1,
+      application: {
+        baseURL: detected.baseURL,
+        startCommand: detected.startCommand,
+        buildCommand: detected.buildCommand,
+        healthURL: detected.baseURL,
+        startupTimeoutMs: 120_000,
+        seedPath: './',
+      },
+      scope: { allowedOrigins: [detected.baseURL] },
+      requirements: {},
+      authentication: {},
+      discovery: {},
+      evidence: {},
+      validation: {},
+      accessibility: {},
+      visual: {},
+      performance: {},
+      testing: {},
+    });
 
-results.push([
-  CONFIG_FILENAME,
-  writeIfAbsent(
-    join(targetRoot, CONFIG_FILENAME),
-    JSON.stringify(config, null, 2) + '\n',
-  ),
-]);
+const results: Record<string, string> = {};
+
+results[CONFIG_FILENAME] = writeIfAbsent(
+  configPath,
+  JSON.stringify(config, null, 2) + '\n',
+);
 
 // Pinned versions, not @latest: an unattended upgrade of the browser-control
 // layer should not be able to break a product's QA overnight.
-results.push([
-  '.mcp.json',
-  writeIfAbsent(
-    join(targetRoot, '.mcp.json'),
-    JSON.stringify(
-      {
-        mcpServers: {
-          playwright: {
-            type: 'stdio',
-            command: 'npx',
-            args: [
-              '-y',
-              '@playwright/mcp@0.0.78',
-              '--isolated',
-              '--caps=testing,storage,network,devtools,vision',
-            ],
-          },
-          'chrome-devtools': {
-            type: 'stdio',
-            command: 'npx',
-            args: ['-y', 'chrome-devtools-mcp@1.6.0', '--isolated'],
-          },
-          'agent-qa': {
-            type: 'stdio',
-            command: 'npx',
-            args: ['--no-install', 'agent-qa-mcp', '--target', '.'],
-          },
+results['.mcp.json'] = writeIfAbsent(
+  join(targetRoot, '.mcp.json'),
+  JSON.stringify(
+    {
+      mcpServers: {
+        playwright: {
+          type: 'stdio',
+          command: 'npx',
+          args: [
+            '-y',
+            '@playwright/mcp@0.0.78',
+            '--isolated',
+            '--caps=testing,storage,network,devtools,vision',
+          ],
+        },
+        'chrome-devtools': {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', 'chrome-devtools-mcp@1.6.0', '--isolated'],
+        },
+        'agent-qa': {
+          type: 'stdio',
+          command: 'npx',
+          args: ['--no-install', 'agent-qa-mcp', '--target', '.'],
         },
       },
-      null,
-      2,
-    ) + '\n',
-  ),
-]);
+    },
+    null,
+    2,
+  ) + '\n',
+);
 
 for (const directory of [
   config.testing.requirementsDirectory,
   config.testing.scenariosDirectory,
   config.testing.defectsDirectory,
+  config.testing.discoveriesDirectory,
   config.testing.generatedDirectory,
   config.testing.approvedDirectory,
-  config.capture.sessionDirectory,
-  'artifacts',
+  config.testing.visualDirectory,
+  config.evidence.sessionsDirectory,
+  config.testing.reportsDirectory,
+  'qa',
+  'scripts/qa',
 ]) {
   const absolute = join(targetRoot, directory);
   mkdirSync(absolute, { recursive: true });
-  writeIfAbsent(
-    join(absolute, '.gitkeep'),
-    '',
-  );
-  results.push([directory + '/', 'ensured']);
+  writeIfAbsent(join(absolute, '.gitkeep'), '');
+  results[directory + '/'] = 'ensured';
 }
 
 // The runnable pieces. These live in the target so its tests execute with the
 // plain Playwright runner - no engine, no MCP, no model - which is the whole
 // point of externalising the tests into files.
-results.push([
-  `${config.testing.testDirectory}/fixtures.ts`,
-  writeIfAbsent(
-    join(targetRoot, config.testing.testDirectory, 'fixtures.ts'),
-    FIXTURES_TEMPLATE,
-  ),
-]);
+const files: Array<[string, string]> = [
+  [join(config.testing.testDirectory, 'fixtures.ts'), evidenceFixtureTemplate(config)],
+  [join(config.testing.testDirectory, 'seed.spec.ts'), seedTemplate()],
+  ['playwright.qa.config.ts', playwrightConfigTemplate(config)],
+  ['.agent/QA_MISSION.md', qaMissionTemplate(config)],
+  ['AGENTS.md', targetAgentsTemplate(config)],
+  ['qa/auth.types.ts', authTypesTemplate()],
+  ['qa/auth.adapter.ts', authAdapterTemplate()],
+  ['scripts/qa/prepare-auth-state.ts', prepareAuthStateTemplate(config)],
+];
 
-results.push([
-  `${config.testing.testDirectory}/seed.spec.ts`,
-  writeIfAbsent(
-    join(targetRoot, config.testing.testDirectory, 'seed.spec.ts'),
-    SEED_TEMPLATE,
-  ),
-]);
+if (config.performance.enabled) {
+  files.push([config.performance.configPath.replace(/^\.\//, ''), lighthouseConfigTemplate(config)]);
+}
 
-results.push([
-  'playwright.qa.config.ts',
-  writeIfAbsent(
-    join(targetRoot, 'playwright.qa.config.ts'),
-    playwrightConfigTemplate(config),
-  ),
-]);
+// The auth adapter is a stub the target is expected to implement, so it is
+// never refreshed - that would delete the only part someone had to write.
+const PRODUCT_OWNED = new Set(['qa/auth.adapter.ts', 'AGENTS.md']);
 
-appendGitignore(targetRoot, [
-  'playwright/.auth/',
-  '.qa/sessions/',
-  'artifacts/',
-]);
-results.push(['.gitignore', 'updated']);
+for (const [relativePath, contents] of files) {
+  results[relativePath] = writeIfAbsent(
+    join(targetRoot, relativePath),
+    contents,
+    !PRODUCT_OWNED.has(relativePath),
+  );
+}
+
+results['.gitignore'] = appendGitignore(targetRoot, GITIGNORE_ENTRIES);
 
 console.log(
   JSON.stringify(
@@ -377,13 +307,16 @@ console.log(
       status: 'initialised',
       target: targetRoot,
       detectedFramework: detected.framework,
-      baseURL: detected.baseURL,
-      startCommand: detected.startCommand ?? null,
-      results: Object.fromEntries(results),
+      baseURL: config.application.baseURL,
+      startCommand: config.application.startCommand ?? null,
+      roles: config.authentication.roles,
+      results,
       nextSteps: [
-        `Review ${CONFIG_FILENAME} - detection is a guess, not a contract.`,
-        'Approve the project MCP servers in your coding client (/mcp in Claude Code).',
+        `Review ${CONFIG_FILENAME}. Detection is a guess, not a contract.`,
+        'Implement qa/auth.adapter.ts for this application - there is no universal test-user protocol.',
+        'Approve the project MCP servers in your coding client (/mcp in Claude Code), then restart the session.',
         `Write a requirement under ${config.testing.requirementsDirectory}/ before generating any test.`,
+        'Then tell your agent: Execute .agent/QA_MISSION.md',
       ],
     },
     null,
