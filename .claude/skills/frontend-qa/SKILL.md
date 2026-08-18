@@ -25,13 +25,67 @@ Read `.agent/PLANS.md`. Create an ExecPlan when the task meets the planning crit
 
 Stop when the seed test fails. Classify the failure as an environment or fixture problem before exploring feature behavior.
 
+## Browser Control Servers
+
+Three browser-control servers may be available. Check which are connected before
+exploring; do not assume.
+
+| Server | Role |
+| --- | --- |
+| Playwright MCP | Default owner of browser actions. |
+| browserd | Continuous recording: network, console, exceptions and navigations captured the whole session, queryable after the fact. |
+| Chrome DevTools MCP | Narrow fallback when Playwright evidence is insufficient. |
+
+Playwright MCP remains the action owner. Use browserd when the question is about
+the past ("what requests fired before the error", "what was logged during that
+navigation") rather than about driving the next click, because it records
+whether or not you asked it to.
+
+### Installing browserd when it is missing
+
+browserd is optional. Exploration works without it: you lose retrospective
+evidence, not the ability to test. Install it only when the task needs that
+evidence and the tools are absent, and only with the user's agreement, since it
+writes to their MCP client config.
+
+Confirm it is genuinely missing first: look for `browserd` tools such as
+`network_summarize` or `console_query` in the connected tool list. Then:
+
+    git clone https://github.com/Kawai-Senpai/Browsered.git browserd
+    cd browserd
+    npm install
+    npm run build
+    node dist/cli.js --tools          # expect a tool count, confirms the build
+    node scripts/install-mcp.mjs      # merges into every detected client, writes .bak first
+    node scripts/verify-mcp.mjs       # real MCP handshake per client
+
+Requires Node >= 20.11 and a Chromium. If none is present,
+`npx playwright install chromium` provides one. Do not install a Node runtime
+yourself; stop and tell the user.
+
+`install-mcp.mjs` merges into existing client config and never clobbers other
+servers. Restart the session afterwards: **a server registered mid-session does
+not appear until the client restarts**, so finish the current step before
+installing rather than expecting the tools to arrive mid-response.
+
+To register manually instead, the stdio entry uses an absolute path:
+
+    {"mcpServers": {"browserd": {"command": "node", "args": ["<ABS>/dist/cli.js"]}}}
+
+Never install into a user's personal browser profile or a production MCP client
+without saying what you are about to change.
+
 ## Exploration
 
 Use Playwright MCP as the browser-control owner.
 
 Record every meaningful action, the semantic locator used, visible state before and after, current URL, console errors, page errors, failed requests, relevant successful requests, dialogs, downloads, popups, candidate assertions, and the requirement passage supporting each assertion.
 
-Use Chrome DevTools MCP only when Playwright evidence is insufficient. Do not let both tools issue actions against the same page concurrently.
+Use browserd to query recorded network, console and exception history instead of
+re-running a flow to observe it again. Use Chrome DevTools MCP only when Playwright
+evidence is insufficient. Do not let two tools issue actions against the same page
+concurrently - reading recorded history while Playwright drives is safe, issuing
+competing clicks is not.
 
 ## Scenario Design
 
@@ -60,7 +114,8 @@ The scenario schema can only express role, label, text and test-ID locators, so 
 
 ## Validation
 
-Run `qa_audit_generated_tests` with the generated test path, `repeatEach: 3`, `project: chromium`, `execute: true`.
+Run `qa_validate_generated_tests` with `target` set to the generated test path,
+`repeatEach: 3` and `project: chromium`. `typeCheck` defaults to true; leave it on.
 
 When the flow is responsive or mobile-sensitive, also run `project: mobile-chrome`.
 

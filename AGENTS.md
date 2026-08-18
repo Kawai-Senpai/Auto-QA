@@ -34,7 +34,7 @@ When no reliable expected result exists, record the uncertainty in `specs/discov
 8. Use Chrome DevTools MCP only for deeper runtime, network, rendering or performance diagnosis.
 9. Record proposed tests as structured scenarios in `specs/scenarios/`.
 10. Compile scenarios with `qa_compile_scenario`.
-11. Audit generated tests with `qa_audit_generated_tests`.
+11. Audit generated tests with `qa_validate_generated_tests`.
 12. Run accepted tests repeatedly from clean browser contexts.
 13. Update the active ExecPlan after every meaningful milestone.
 14. Store failure evidence under `artifacts/`.

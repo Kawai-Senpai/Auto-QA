@@ -205,7 +205,7 @@ Steps:
    could this assertion pass while the feature is broken?
 5. Write specs/qa/scenarios/<id>.json naming its requirementSource.
 6. Compile with qa_compile_scenario.
-7. Validate with qa_audit_generated_tests (repeatEach: 3, project: chromium).
+7. Validate with qa_validate_generated_tests (repeatEach: 3, project: chromium).
 8. MUTATION CHECK: break the behaviour, confirm the test FAILS, revert,
    confirm it PASSES, confirm git status is clean.
 
@@ -269,14 +269,22 @@ Loaded automatically by Claude Code and Codex when a task matches.
 
 ## 🔌 MCP tools
 
-Three narrow, typed operations — and **no generic shell tool**. Browser-controlled
+Narrow, typed operations — and **no generic shell tool**. Browser-controlled
 content reaching a shell is remote code execution.
+
+The server advertises 14 tools. The core of the authoring loop:
 
 | Tool | Purpose |
 | --- | --- |
 | `qa_compile_scenario` | Validate a scenario → write a permanent test |
-| `qa_audit_generated_tests` | Reject weak tests, then run them repeatedly |
+| `qa_validate_generated_tests` | Reject weak tests, then run them repeatedly |
 | `qa_run_playwright_tests` | Run existing tests without arbitrary commands |
+| `qa_promote_tests` | Move a proven test into the approved suite |
+
+Session and discovery tools (`qa_preflight`, `qa_discover_application`,
+`qa_check_scope`, `qa_prepare_auth_state`, `qa_begin_session`, `qa_record_event`,
+`qa_complete_session`, `qa_session_summary`, `qa_list_generated_tests`,
+`qa_config`) round out the set.
 
 Target paths are constrained to the repository. Versions in generated
 `.mcp.json` are **pinned**, never `@latest` — an unattended upgrade of the
@@ -287,6 +295,37 @@ browser-control layer must not break a product's QA overnight.
 | `@playwright/mcp` | `0.0.78` |
 | `chrome-devtools-mcp` | `1.6.0` |
 | `@playwright/test` | `1.62.1` |
+
+### Browser control servers
+
+Playwright MCP owns browser actions. Two others can sit alongside it:
+
+| Server | Role | Required? |
+| --- | --- | --- |
+| `@playwright/mcp` | Drives the browser. Accessibility snapshots, clicks, assertions. | Yes |
+| [`browserd`](https://github.com/Kawai-Senpai/Browsered) | Records network, console, exceptions and navigations continuously, so questions about what already happened are answerable without re-running the flow. | Optional |
+| `chrome-devtools-mcp` | Narrow fallback when Playwright evidence is insufficient. | Optional |
+
+**browserd is optional.** Without it you lose retrospective evidence, not the
+ability to test. The agent may install it when a task needs that evidence and
+the tools are absent, with your agreement, because it writes to your MCP client
+config:
+
+```bash
+git clone https://github.com/Kawai-Senpai/Browsered.git browserd && cd browserd
+npm install
+npm run build
+node scripts/install-mcp.mjs      # merges into detected clients, writes a .bak first
+node scripts/verify-mcp.mjs       # real MCP handshake per client
+```
+
+Needs Node >= 20.11 and a Chromium (`npx playwright install chromium` if absent).
+The installer merges rather than overwrites, so existing servers survive.
+**Restart the client afterwards** - a server registered mid-session does not
+appear until the session restarts.
+
+The agent-facing version of this lives in the `frontend-qa` skill under
+[Browser Control Servers](.claude/skills/frontend-qa/SKILL.md#browser-control-servers).
 
 ---
 

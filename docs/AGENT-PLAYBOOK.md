@@ -161,7 +161,7 @@ journey fails for a dozen reasons and tells you nothing about which.
 
 ```
 qa_compile_scenario           -> writes tests/e2e/generated/<id>.spec.ts
-qa_audit_generated_tests      -> static gauntlet, then repeatEach: 3
+qa_validate_generated_tests      -> static gauntlet, then repeatEach: 3
 ```
 
 The auditor rejects fixed sleeps, `test.skip`/`fixme`/`only`, `nth()`, XPath,

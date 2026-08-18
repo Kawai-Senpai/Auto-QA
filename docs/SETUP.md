@@ -79,8 +79,8 @@ npm run mcp
 ```
 
 It speaks JSON-RPC on stdin/stdout, so it will look like it is hanging. That is
-correct. Press Ctrl+C. A real handshake returns three tools:
-`qa_compile_scenario`, `qa_audit_generated_tests`, `qa_run_playwright_tests`.
+correct. Press Ctrl+C. A real handshake returns 14 tools, including
+`qa_compile_scenario`, `qa_validate_generated_tests` and `qa_run_playwright_tests`.
 
 ---
 
@@ -215,7 +215,7 @@ page errors and network activity.
 npx tsx /path/to/Auto-QA/src/cli-compile.ts specs/qa/scenarios/<id>.json
 ```
 
-**5. Audit and run repeatedly** with `qa_audit_generated_tests`
+**5. Audit and run repeatedly** with `qa_validate_generated_tests`
 (`repeatEach: 3`), or `npm run audit`.
 
 **6. Mutation-check.** This is the step everyone skips and the one that decides
