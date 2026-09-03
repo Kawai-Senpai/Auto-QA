@@ -33,13 +33,24 @@ exploring; do not assume.
 | Server | Role |
 | --- | --- |
 | Playwright MCP | Default owner of browser actions. |
-| browserd | Continuous recording: network, console, exceptions and navigations captured the whole session, queryable after the fact. |
+| browserd | Continuous recording of network, console, exceptions and navigations; semantic locator resolution; flow recording shaped for this harness. |
 | Chrome DevTools MCP | Narrow fallback when Playwright evidence is insufficient. |
 
-Playwright MCP remains the action owner. Use browserd when the question is about
-the past ("what requests fired before the error", "what was logged during that
-navigation") rather than about driving the next click, because it records
-whether or not you asked it to.
+**Each server drives its own browser.** browserd records its own Chromium and
+its own tool calls; it sees nothing that happens in the browser Playwright MCP
+launched. Sharing one browser between them is not currently wired up - browserd
+exposes no tool that returns its CDP endpoint - so do not try to arrange it.
+
+That makes the choice per-flow, not per-session:
+
+- **Driving with Playwright MCP** (the default): use browserd for nothing, and
+  gather evidence from Playwright's own console and network reporting.
+- **Driving with browserd**: you additionally get `locator.*` and `qa.*`, which
+  are the tools that make a scenario cheap to author correctly. Prefer this for
+  any flow you intend to turn into a test.
+
+Do not mix drivers within one flow. A half-recorded flow is worse than an
+unrecorded one, because the gap is invisible in the output.
 
 ### Installing browserd when it is missing
 
@@ -75,23 +86,87 @@ To register manually instead, the stdio entry uses an absolute path:
 Never install into a user's personal browser profile or a production MCP client
 without saying what you are about to change.
 
+### Authoring locators with browserd
+
+The scenario schema accepts only `role` + `name`, `label`, `text` and `testId`.
+Guessing which of those addresses an element, then finding out at compile time,
+is the slowest possible loop. `locator.candidates` answers it in the browser:
+
+    locator.candidates { selector: "header nav a" }
+
+It returns each usable locator with how many elements it actually matches, and
+when a locator is ambiguous it computes the landmark scope that makes it unique.
+Take `recommended` and put it in the scenario verbatim.
+
+A count above one is a problem to fix, never one to route around. `.first()` and
+`nth()` do not disambiguate; they suppress the complaint and reduce the assertion
+to "one of these exists somewhere". If no candidate is unique, the answer is a
+test id or a markup change, and that is worth saying to the user.
+
+Before compiling, check each target you did not take verbatim:
+
+    locator.check { target: { by: "role", role: "button", name: "Save" } }
+
+`ok: true` means exactly one match. Anything else is cheaper to fix now than
+after `qa_validate_generated_tests` has run the test three times.
+
+### Recording a flow with browserd
+
+    qa.record_start { flow: "create a todo" }   # then drive normally
+    qa.steps {}                                 # scenario steps, semantic targets
+    qa.evidence {}                              # what the application actually did
+    qa.scenario_draft { id: "todo-create", name: "A todo can be created" }
+
+Each action resolves its semantic locator before it runs, which is the only
+moment that answer is reliable. `qa.evidence` reads the recording browserd was
+keeping anyway, so the window is chosen after the flow.
+
+**The draft is deliberately not compilable.** It returns `assertions: []` and
+`requirementSource: null`, because those are exactly the two things that must
+come from a requirement document rather than from observed behaviour. Candidate
+assertions arrive with `oracle: null` and stay that way until you attach a
+requirement passage to each one. A candidate you cannot justify from a
+requirement is a discovery for `specs/discoveries/`, not an assertion.
+
+`qa.session_events` returns the same exploration as harness events; feed each to
+`qa_record_event` with the id from `qa_begin_session`.
+
+### Artifacts browserd can hand over
+
+- `storage.export { format: "playwright" }` writes a real `storageState` file,
+  which is what a scenario's `role` field loads. Note it has no field for
+  sessionStorage; the tool warns when keys were dropped.
+- `page.snapshot { format: "aria" }` emits Playwright's aria-snapshot dialect
+  for an `ariaSnapshot` assertion. It is a draft: run the assertion once and
+  reconcile before committing, because Chrome and Playwright compute roles and
+  names independently.
+- `network.export_har` produces a HAR for a scenario's `har` field. Whether
+  Playwright's `routeFromHAR` loads it unmodified has not been verified; prove
+  it on one scenario before relying on it.
+
 ## Exploration
 
-Use Playwright MCP as the browser-control owner.
+Use one browser-control owner per flow, chosen as described above.
 
 Record every meaningful action, the semantic locator used, visible state before and after, current URL, console errors, page errors, failed requests, relevant successful requests, dialogs, downloads, popups, candidate assertions, and the requirement passage supporting each assertion.
 
-Use browserd to query recorded network, console and exception history instead of
-re-running a flow to observe it again. Use Chrome DevTools MCP only when Playwright
-evidence is insufficient. Do not let two tools issue actions against the same page
-concurrently - reading recorded history while Playwright drives is safe, issuing
-competing clicks is not.
+When browserd drove the flow, `qa.steps` and `qa.evidence` already hold most of
+that; do not transcribe it from memory when a tool can return it.
+
+Use Chrome DevTools MCP only when the evidence from the driving server is
+insufficient. Do not let two tools issue actions against the same page
+concurrently - reading recorded history is safe, issuing competing clicks is not.
 
 ## Scenario Design
 
 Each scenario must contain a stable lowercase ID, a descriptive name, a repository-relative `requirementSource`, deterministic actions, semantic targets, at least one requirement-backed assertion, any required network assertions, and evidence references.
 
 Separate unrelated behavior into separate tests. Do not produce one enormous end-to-end test covering an entire application.
+
+When browserd is the driver, every target in the scenario should have come from
+`locator.candidates` or been confirmed by `locator.check`. A target nobody
+resolved against the live page is a guess, and a guess is what the compile,
+audit and repeated-run cycle is going to spend its time disproving.
 
 ## Assertion Review
 

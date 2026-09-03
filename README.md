@@ -303,13 +303,42 @@ Playwright MCP owns browser actions. Two others can sit alongside it:
 | Server | Role | Required? |
 | --- | --- | --- |
 | `@playwright/mcp` | Drives the browser. Accessibility snapshots, clicks, assertions. | Yes |
-| [`browserd`](https://github.com/Kawai-Senpai/Browsered) | Records network, console, exceptions and navigations continuously, so questions about what already happened are answerable without re-running the flow. | Optional |
+| [`browserd`](https://github.com/Kawai-Senpai/Browsered) | Records network, console, exceptions and navigations continuously. Also resolves **semantic locators** and records a driven flow as scenario steps. | Optional |
 | `chrome-devtools-mcp` | Narrow fallback when Playwright evidence is insufficient. | Optional |
 
-**browserd is optional.** Without it you lose retrospective evidence, not the
-ability to test. The agent may install it when a task needs that evidence and
-the tools are absent, with your agreement, because it writes to your MCP client
-config:
+#### What browserd adds to the authoring loop
+
+The scenario schema accepts only `role` + `name`, `label`, `text` and `testId`.
+Choosing among those for an element found by selector is otherwise a guess that
+only fails at compile time. browserd answers it in the browser:
+
+| Tool | Answers |
+| --- | --- |
+| `locator.candidates` | Which locators address this element, and how many things does each actually match. When one is ambiguous, which landmark scope makes it unique - the honest alternative to `.first()`. |
+| `locator.check` | Does this scenario target resolve to exactly one element, right now. |
+| `qa.record_start` / `qa.steps` | The flow you just drove, as scenario steps with semantic targets resolved before each action ran. |
+| `qa.evidence` | Which first-party calls fired, what errored, where it ended up - over a window chosen *after* the flow, since recording was always on. |
+| `qa.scenario_draft` | The recorded flow in scenario shape, with `assertions: []` and `requirementSource: null`. |
+
+That last one is the point rather than an oversight. **browserd reports what
+happened and never decides what should have happened**, so every candidate
+assertion carries a null oracle and the draft refuses to call itself compilable
+until a requirement is attached. The guarantee this repository exists to make
+survives the handoff.
+
+`storage.export { format: "playwright" }` also emits a real `storageState` file
+for a scenario's `role`, and `page.snapshot { format: "aria" }` emits Playwright's
+aria-snapshot dialect for an `ariaSnapshot` assertion.
+
+One constraint worth knowing before you plan a session: **each server drives its
+own browser.** browserd records its own Chromium and its own tool calls, so the
+locator and recording tools only see flows that browserd drove. Pick one driver
+per flow; a half-recorded flow hides its own gaps.
+
+**browserd is optional.** Without it you lose retrospective evidence and locator
+resolution, not the ability to test. The agent may install it when a task needs
+that and the tools are absent, with your agreement, because it writes to your
+MCP client config:
 
 ```bash
 git clone https://github.com/Kawai-Senpai/Browsered.git browserd && cd browserd
