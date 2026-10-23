@@ -121,6 +121,10 @@ sewer.
 
 `npm run email-lab -- <folder-or-files...> [--out dir] [--no-shots]` renders every HTML email at 640, 390 and 320px under four inbox behaviours: as designed, Gmail-style forced dark mode (light backgrounds darkened, images untouched), <style> stripped, and images off. It reports distorted or broken images, images without width and height, page overflow, low contrast, small text and tap targets on phones, and localhost links, and saves a screenshot of every render. A clean report is necessary, not sufficient: look at the screenshots, and hold them to the polish bar above.
 
+## 🧹 UI sweep
+
+`sweeps/ui-sweep.js` runs inside a signed-in page (for example browserd `js.evaluate` with `file:`). It walks every sidebar link and reports misshapen checkboxes, invisible help buttons, raw values in visible text (`null`, `NaN`, `snake_case` keys) and horizontal overflow. Run it after any shared CSS change: one leaked class can break every screen at once.
+
 ## ⚡ Quick start
 
 ```bash
