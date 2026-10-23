@@ -7,6 +7,29 @@ description: Explore a web frontend, diagnose browser behavior, convert approved
 
 Read the repository root `AGENTS.md` before using this skill.
 
+
+## Test like the real world, not like the developer
+
+Read `docs/QA-MINDSET.md` before any exploration; its first section is the
+owner's own brief, kept whole. The short of it, which is not a substitute:
+
+- A developer's test passes because it only tries what the system already
+  does. Be the outside user instead: real life is messy, full of exceptions,
+  uniqueness and noise.
+- Required information may simply not exist (no phone, no email, nothing at
+  all about the client). Look for the way out; its absence is a finding.
+- Steps happen out of order, get skipped, reordered or repeated for one
+  exceptional client. Try it.
+- People need to undo what they already did. Look for the way back.
+- The same system may be used tomorrow by a different business in another
+  country with 10,000 customers a day. Ask what breaks.
+- Findings are bugs, missing ways out, improvements and new features alike.
+- "Works" is not "done". Polish is tested too: if a screen or email is merely
+  okay, that is a finding (the owner's bar: no "75% there").
+
+## Think like a real user first
+
+
 ## Required Inputs
 
 Before browser exploration, identify the product requirement file under `specs/product/`, the application base URL, the seed test, the allowed test account or fixture, the requested flow, and prohibited or destructive actions.

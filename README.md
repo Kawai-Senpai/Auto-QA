@@ -27,6 +27,26 @@ Built by **[Ranit Bhowmick](https://ranitbhowmick.com)** · [ranitbhowmick.com](
 
 ---
 
+
+## Test like the real world, not like the developer
+
+Read `docs/QA-MINDSET.md` before any exploration; its first section is the
+owner's own brief, kept whole. The short of it, which is not a substitute:
+
+- A developer's test passes because it only tries what the system already
+  does. Be the outside user instead: real life is messy, full of exceptions,
+  uniqueness and noise.
+- Required information may simply not exist (no phone, no email, nothing at
+  all about the client). Look for the way out; its absence is a finding.
+- Steps happen out of order, get skipped, reordered or repeated for one
+  exceptional client. Try it.
+- People need to undo what they already did. Look for the way back.
+- The same system may be used tomorrow by a different business in another
+  country with 10,000 customers a day. Ask what breaks.
+- Findings are bugs, missing ways out, improvements and new features alike.
+- "Works" is not "done". Polish is tested too: if a screen or email is merely
+  okay, that is a finding (the owner's bar: no "75% there").
+
 ## Why this exists
 
 Letting a model click a button is no longer a product. Playwright ships a
@@ -45,6 +65,7 @@ Auto-QA is built around that single problem. Every assertion must name where its
 expectation came from, and the machinery makes weak tests *hard to produce*.
 
 ---
+
 
 ## 🛡️ How weak tests are prevented
 
@@ -95,6 +116,10 @@ history. Dumping every client's tests into the engine would be an unmanageable
 sewer.
 
 ---
+
+## 📧 Email lab
+
+`npm run email-lab -- <folder-or-files...> [--out dir] [--no-shots]` renders every HTML email at 640, 390 and 320px under four inbox behaviours: as designed, Gmail-style forced dark mode (light backgrounds darkened, images untouched), <style> stripped, and images off. It reports distorted or broken images, images without width and height, page overflow, low contrast, small text and tap targets on phones, and localhost links, and saves a screenshot of every render. A clean report is necessary, not sufficient: look at the screenshots, and hold them to the polish bar above.
 
 ## ⚡ Quick start
 

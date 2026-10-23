@@ -12,7 +12,8 @@
     "compile": "tsx src/cli-compile.ts",
     "audit": "tsx src/cli-audit.ts",
     "mcp": "tsx src/mcp-server.ts",
-    "init": "tsx src/cli-init.ts"
+    "init": "tsx src/cli-init.ts",
+    "email-lab": "tsx src/cli-email-lab.ts"
   },
   "keywords": [],
   "author": "",

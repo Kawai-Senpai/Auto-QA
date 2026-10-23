@@ -57,6 +57,8 @@ symptoms of a problem you already had evidence for.
 
 ## Phase 3 — Explore
 
+Explore as an outsider, not as the developer (read `docs/QA-MINDSET.md`). After the happy path, run the exceptional ones: a field you do not have, a step out of order, undoing a step, a second country or currency, an empty list and a huge one, a person with no access. Each gap is a finding even when nothing crashes.
+
 Playwright MCP owns the browser. Chrome DevTools MCP inspects. Never let both
 issue actions against the same page.
 

@@ -1,5 +1,25 @@
 # Auto-QA Harness
 
+
+## Test like the real world, not like the developer
+
+Read `docs/QA-MINDSET.md` before any exploration; its first section is the
+owner's own brief, kept whole. The short of it, which is not a substitute:
+
+- A developer's test passes because it only tries what the system already
+  does. Be the outside user instead: real life is messy, full of exceptions,
+  uniqueness and noise.
+- Required information may simply not exist (no phone, no email, nothing at
+  all about the client). Look for the way out; its absence is a finding.
+- Steps happen out of order, get skipped, reordered or repeated for one
+  exceptional client. Try it.
+- People need to undo what they already did. Look for the way back.
+- The same system may be used tomorrow by a different business in another
+  country with 10,000 customers a day. Ask what breaks.
+- Findings are bugs, missing ways out, improvements and new features alike.
+- "Works" is not "done". Polish is tested too: if a screen or email is merely
+  okay, that is a finding (the owner's bar: no "75% there").
+
 ## Mission
 
 This repository builds and maintains browser-based frontend tests.
@@ -7,6 +27,7 @@ This repository builds and maintains browser-based frontend tests.
 The agent must explore the application, compare observed behavior with an explicit requirement, generate durable Playwright tests, validate those tests from a clean state, and preserve evidence for failures.
 
 A browser action without a meaningful assertion is not a test.
+
 
 ## Sources of Truth
 
