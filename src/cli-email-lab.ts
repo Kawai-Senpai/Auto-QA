@@ -8,13 +8,17 @@
  */
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { nameOf, runEmailLab } from './lib/email-lab.ts'
+import { nameOf, runEmailLab } from './lib/email-lab.js'
 
 const args = process.argv.slice(2)
 const outIdx = args.indexOf('--out')
 const outDir = outIdx >= 0 ? args[outIdx + 1] : 'artifacts/email-lab'
+if (!outDir || outDir.startsWith('--')) {
+  console.error('--out needs an output directory')
+  process.exit(2)
+}
 const screenshots = !args.includes('--no-shots')
-const inputs = args.filter((a, i) => !a.startsWith('--') && i !== outIdx + 1)
+const inputs = args.filter((a, i) => !a.startsWith('--') && (outIdx < 0 || i !== outIdx + 1))
 
 if (!inputs.length) {
   console.error('usage: npm run email-lab -- <folder-or-files...> [--out dir] [--no-shots]')

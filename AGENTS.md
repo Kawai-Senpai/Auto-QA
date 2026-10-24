@@ -22,6 +22,27 @@ owner's own brief, kept whole. The short of it, which is not a substitute:
 
 ## Mission
 
+### Journey exploration comes before screen coverage
+
+Follow `docs/QA-MINDSET.md`, "Walk one real journey across every person".
+Walk one disposable customer's journey end to end in chronological order as
+each real person in turn (client, sales, operations, engineer, accounts, or the
+target's equivalents). After each action, inspect every affected person's
+Today, client page, stage, next step and waiting-on words before moving on.
+Read every captured email in Mailpit or the configured sandbox and count new
+messages per step and recipient, including expected zero messages and digests.
+Exercise stale open pages changed through another tab, API or MCP; money cases
+(foreign tax, drafts, duplicate periods, rounding); and both allowed and denied
+access using actual role sessions and direct requests.
+
+Keep a step ledger and record each finding with where, actor, what was seen,
+requirement or uncertainty, evidence and kind: bug, no way out, improvement or
+feature. Convert requirement-confirmed journeys into focused scenarios through
+the existing compiler, audit and repeated clean execution. Record unsupported
+cross-role scenario coverage explicitly; never weaken the automation gates.
+
+### Harness mission
+
 This repository builds and maintains browser-based frontend tests.
 
 The agent must explore the application, compare observed behavior with an explicit requirement, generate durable Playwright tests, validate those tests from a clean state, and preserve evidence for failures.

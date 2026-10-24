@@ -115,9 +115,91 @@ Ask these, then actually try them in the browser. Do not just think them.
 - What if there is nothing at all yet (empty states) and what if there is far
   too much (long names, 200 rows, 40 attachments)?
 
+## Walk one real journey across every person
+
+The Northwind journey (24 Oct 2026) found defects that isolated screen checks
+missed: a paid client's project still said the scope was being agreed, a fixed
+bug left its delivery task open, the next step still asked for payment, and an
+open editor restored old values over a newer change. Use the method below on
+the target product's own fixtures and requirements. The example is evidence
+for how to explore, not a requirement for every application.
+
+### Before the first step
+
+Choose one disposable customer and a realistic outcome, from the first request
+through delivery, handover and follow-up. Write the chronological steps and
+identify each person involved: for example client, sales, operations, engineer
+and accounts. Map those to the configured test accounts and approved role
+states. Keep separate browser contexts for people; changing a label in the UI
+does not prove their permissions. Record missing accounts or unavailable
+capture services as coverage gaps, never as passing checks.
+
+Use a local email capture service such as Mailpit. Discover its configured URL
+and verify the application is actually sending to it. A database row marked
+sent is not proof the capture service received an email. Do not send QA mail to
+real recipients, and do not silently substitute live payments for fixtures.
+
+### After every meaningful step
+
+Act as the person who would do that step in real life. Before the next person
+acts, read what every affected person now sees:
+
+- Their Today or equivalent home page and outstanding actions.
+- The customer's portal page, the engagement or order stage, and the delivery
+  project or equivalent object.
+- The exact words for where the work is, what happens next, and who owes the
+  next move. Check that all views agree with the records and with each other.
+  Signed means stop asking for a signature; paid means stop asking for payment;
+  work started must not leave the client waiting on themselves.
+- The emails the step produced. Compare capture IDs before and after, count
+  messages per recipient, and read every new message's subject, text and HTML.
+  Check facts, amounts, next steps, role-specific links, phone rendering and
+  unnecessary repetition. For an action that should send nothing, verify zero.
+  If news is intentionally grouped, check its queued or digest state and later
+  delivery using the supported job or clock controls; do not sleep and assume.
+
+Keep a step ledger with actor, action, requirement source, affected observers,
+each observer's stage/next step/waiting on, expected and actual email counts,
+evidence references, and findings. This is what makes disagreement visible.
+
+### Deliberately disturb the journey
+
+- Leave an editor open, change the same object in another tab, through the API
+  or through MCP, then save or let autosave run in the first tab. Verify the
+  approved conflict behavior and persisted values. An old page must not silently
+  restore a deleted tax or overwrite a colleague's new work. Test a same-period
+  billing action from two places too, including a retry after an uncertain result.
+- Use money cases the product supports: a foreign customer and explicit tax
+  choices, no tax, unsent drafts, partial payments, fixed and repeating periods,
+  duplicate billing of the same period, and fractional amounts that expose
+  rounding. Compare the quote, billing plan, invoice, portal totals and email;
+  no draft may appear as a client debt merely because staff can see it. Source
+  the exact tax and rounding expectations from requirements, not geography.
+- Switch to both permitted and forbidden people, including an unrelated
+  customer, unassigned staff and someone whose access ended. Check direct
+  URLs, API responses and email links as well as hidden controls. Check internal
+  notes, drafts and amounts for leaks. Never treat a missing button as proof of
+  authorization.
+- Skip, repeat, reorder, pause, resume and undo steps using approved fixtures.
+  Missing information and exceptional deals should expose a usable way forward
+  or a clearly recorded product decision.
+
+### Turn findings into repeatable coverage
+
+Explore the whole journey first; retain its ledger as context. Once requirements
+confirm the expected behavior, split the confirmed journey and its regressions
+into focused structured scenarios with deterministic fixtures and meaningful
+visible and side-effect assertions. Use the existing compiler, static audit,
+type check, repeated clean runs and negative validation. Do not replace these
+with a giant manual script, and do not invent unsupported scenario fields or
+assume multi-context actions can be compiled. If a boundary is not expressible,
+record the coverage gap and use the harness's approved-test path or a separate
+reviewed enhancement. Unresolved expectations stay discoveries.
+
 ## How to record what you find
 
-For each finding write: what you did, what happened, what a real user needed,
+For each finding write: where (route/object and acting role), what you did,
+what was seen, what a real user needed,
 and which kind it is (bug, no way out, improvement, feature). Put evidence
 next to it: the screen, the request, the email. Fix what is in scope; list
 the rest for a decision. An exceptional case nobody can handle today is a

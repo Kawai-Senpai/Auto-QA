@@ -1,5 +1,44 @@
 import type { TargetConfig } from './target-config.js';
 
+// Included in both generated entry points so new target repositories inherit
+// the exploration method without depending on this checkout's documentation.
+const journeyExplorationGuidance = `## Walk a real journey across every person
+
+Use one disposable customer's end-to-end journey, in the order it happens,
+acting as every person in turn: client, sales, operations, engineer, accounts,
+or this product's equivalent roles. Use approved accounts and separate role
+contexts. After each step, before the next action, read every affected person's
+Today or home page, client page, stage, next step and who owes the next move.
+Check that all views agree with the records and each other.
+
+Verify the configured email sandbox (for example Mailpit) receives the mail.
+Read every new message's subject, text, HTML and role-specific links. Count
+messages per step and recipient, including zero when no email is expected.
+Check intentional grouping through its queued or digest state and supported
+job controls; a database row marked sent is not delivery evidence.
+
+Leave an editor open and change its data from another tab, the API or MCP,
+then save or trigger autosave and check conflict behavior and stored values.
+Try supported money edges: foreign-client tax choices, no tax, unsent drafts,
+partial payments, duplicate billing of a period (including concurrent retries),
+and rounding across quote, plan, invoice, portal and email. Read requirements
+for the expected tax and rounding rules. Switch to people who should and should
+not have access; test direct URLs, API responses and email links, not only
+hidden controls. Use only approved fixtures, never live money or recipients.
+
+Keep a step ledger: actor, action, requirement source, each affected observer's
+stage/next step/waiting on, expected and actual email counts, evidence and
+findings. Every finding names where, what was seen, what was needed, and kind:
+bug, no way out, improvement or feature. Missing accounts, capture services or
+unknown expectations are coverage gaps or discoveries, never passing checks.
+
+Turn requirement-confirmed journeys into focused structured scenarios with
+deterministic fixtures. Preserve compilation, audit, type checks, repeated
+clean runs and negative validation. Do not create one giant journey test or
+invent scenario fields for cross-role actions the compiler cannot express;
+record that gap and use the approved-test path or a reviewed enhancement.
+`;
+
 /**
  * Files written into a target repository by `agent-qa init`.
  *
@@ -109,6 +148,8 @@ Write \`specs/qa/coverage-map.json\`.
 **"Test everything" is not permission to generate hundreds of shallow tests.**
 
 ## Phase 5 - Explore each flow
+
+${journeyExplorationGuidance}
 
 Call \`qa_begin_session\`, then for each meaningful step call
 \`qa_record_event\`, then \`qa_complete_session\`.
@@ -815,6 +856,8 @@ The QA engine lives elsewhere. This file is the product-specific policy it obeys
 ## Mission
 
 Run \`.agent/QA_MISSION.md\` for a full pass, or ask for a single flow.
+
+${journeyExplorationGuidance}
 
 ## Sources of truth
 

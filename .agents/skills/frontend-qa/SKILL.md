@@ -29,6 +29,21 @@ owner's own brief, kept whole. The short of it, which is not a substitute:
 
 ## Think like a real user first
 
+Use the chronological, multi-person method in `docs/QA-MINDSET.md`, "Walk one
+real journey across every person". Follow one customer's real journey end to
+end as client, sales, operations, engineer and accounts (or the target's roles).
+After every step, compare everyone's Today, client page, stage, next step and
+waiting on. Read all captured email in Mailpit or the configured sandbox and
+count it per step and recipient, including zero and grouped messages. Change
+an open page's data from another tab, API or MCP; try foreign-client tax,
+unsent drafts, duplicate billing periods and rounding; and switch to people
+who should and should not have access, checking direct requests too.
+
+Log where, actor, what was seen, expectation source, evidence and kind (bug,
+no way out, improvement, feature). Then convert confirmed journeys into
+focused scenarios using the existing compiler, audit and repeated clean runs.
+Do not turn uncertain observations into assertions or invent schema features
+for cross-role coverage the compiler cannot express; record the gap.
 
 ## Required Inputs
 
